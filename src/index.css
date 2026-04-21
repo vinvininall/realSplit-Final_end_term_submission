@@ -665,6 +665,150 @@ select.input { cursor: pointer; }
 .btn--sm { padding: 7px 12px; font-size: .8rem; }
 .btn--full { width: 100%; }
 
+
+/* Settlement View Styles */
+.settlement-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  gap: 12px;
+  flex-wrap: wrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.settlement-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.settlement-index {
+  background: #e5e7eb;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.settlement-from {
+  font-weight: 600;
+  color: #ef4444;
+}
+
+.settlement-to {
+  font-weight: 600;
+  color: #10b981;
+}
+
+.settlement-arrow {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.settlement-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.settlement-amount {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.settle-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settle-btn:hover {
+  background: #059669;
+  transform: scale(1.02);
+}
+
+/* Settlement History */
+.settlement-history {
+  margin-top: 24px;
+}
+
+.settlement-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settlement-history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f0fdf4;
+  border-radius: 10px;
+  border-left: 3px solid #10b981;
+}
+
+.settlement-history-icon {
+  width: 28px;
+  height: 28px;
+  background: #10b981;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.settlement-history-details {
+  flex: 1;
+  font-size: 14px;
+}
+
+.settlement-history-time {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.settlement-history-amount {
+  font-weight: 700;
+  color: #10b981;
+  font-size: 16px;
+}
+
+/* Settlement Modal */
+.settle-details {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.settle-question {
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+.settle-amount-badge {
+  background: #f3f4f6;
+  padding: 12px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
 /* ─── Utilities ──────────────────────────────────────────────────────────── */
 .mono { font-family: var(--font-mono); }
 
@@ -676,3 +820,4 @@ select.input { cursor: pointer; }
   .setup-card { padding: 32px 24px; }
   .modal-box { padding: 20px; }
 }
+

@@ -1,8 +1,3 @@
-/**
- * storage.js
- * LocalStorage persistence helpers with graceful error handling.
- */
-
 const STORAGE_KEY = 'realsplit_outing';
 
 export const DEFAULT_OUTING = {
@@ -13,30 +8,31 @@ export const DEFAULT_OUTING = {
   history: [],
 };
 
-export function loadOuting() {
+export const loadOuting = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_OUTING };
-    const parsed = JSON.parse(raw);
-    // Ensure all required keys exist
-    return {
-      ...DEFAULT_OUTING,
-      ...parsed,
-    };
-  } catch {
-    console.warn('realSplit: corrupted localStorage data, resetting.');
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return { ...DEFAULT_OUTING };
+  } catch (error) {
+    console.error('Error loading outing:', error);
     return { ...DEFAULT_OUTING };
   }
-}
+};
 
-export function saveOuting(outing) {
+export const saveOuting = (outing) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(outing));
-  } catch (e) {
-    console.error('realSplit: failed to save to localStorage', e);
+  } catch (error) {
+    console.error('Error saving outing:', error);
   }
-}
+};
 
-export function clearOuting() {
-  localStorage.removeItem(STORAGE_KEY);
-}
+export const clearOuting = () => {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    console.error('Error clearing outing:', error);
+  }
+};

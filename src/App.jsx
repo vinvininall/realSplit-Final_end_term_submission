@@ -9,6 +9,8 @@ import TransactionHistory from './components/TransactionHistory';
 import AddOutingModal from './components/AddOutingModal';
 import { saveExpense } from './services/supabase';
 import { getExpenses } from "./services/supabase";
+// import SettlementView from './components/SettlementView';
+import SettlementHistory from './components/SettlementHistory';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -22,6 +24,7 @@ export default function App() {
   const [newUserName, setNewUserName] = useState('');
   const [outingNameInput, setOutingNameInput] = useState('');
   const [setupDone, setSetupDone] = useState(() => !!loadOuting().name);
+  const [completedSettlements, setCompletedSettlements] = useState([]);
 
   // Persist on every state change
   useEffect(() => {
@@ -55,9 +58,9 @@ export default function App() {
       name: outingNameInput.trim(),
       history: [entry],
     });
+    setCompletedSettlements([]); // Clear settlements for new outing
     setSetupDone(true);
   };
-
   const handleAddUser = () => {
     const name = newUserName.trim();
     if (!name) return;
@@ -156,12 +159,70 @@ export default function App() {
     }
   };
 
+  const handleSettleUp = (transaction) => {
+    // Check if already settled (prevent duplicates)
+    const alreadySettled = completedSettlements.some(settled =>
+      settled.fromId === transaction.fromId &&
+      settled.toId === transaction.toId &&
+      Math.abs(settled.amount - transaction.amount) < 0.01
+    );
+
+    if (alreadySettled) {
+      alert("This payment has already been marked as settled!");
+      return;
+    }
+
+    // Add to completed settlements
+    const newSettlement = {
+      id: Date.now(),
+      fromId: transaction.fromId,
+      toId: transaction.toId,
+      fromName: transaction.fromName,
+      toName: transaction.toName,
+      amount: transaction.amount,
+      completedAt: new Date().toISOString(),
+    };
+
+    setCompletedSettlements(prev => [...prev, newSettlement]);
+
+    // Add to history
+    const entry = addHistory(
+      'settlement_made',
+      `${transaction.fromName} paid ₹${transaction.amount.toFixed(2)} to ${transaction.toName}`
+    );
+
+    update({ history: [...outing.history, entry] });
+
+    alert(`✓ Payment recorded: ${transaction.fromName} paid ${transaction.toName} ₹${transaction.amount.toFixed(2)}`);
+  };
+
   const handleReset = () => {
     if (!confirm('Clear all data and start fresh?')) return;
+
+    // Clear everything
     clearOuting();
-    setOuting({ ...DEFAULT_OUTING });
+
+    // Create a new outing with fresh ID
+    const newOutingId = Date.now().toString();
+
+    setOuting({
+      ...DEFAULT_OUTING,
+      id: newOutingId,
+      name: '',
+      users: [],
+      expenses: [],
+      restaurantBills: [],
+      history: [],
+    });
+
+    // Clear settlements for the reset outing
+    setCompletedSettlements([]);
+    setCurrentOutingId(newOutingId);
     setSetupDone(false);
     setOutingNameInput('');
+
+    // Also clear the stored settlements for the old outing
+    localStorage.removeItem(`settlements_${currentOutingId}`);
   };
 
   useEffect(() => {
@@ -296,7 +357,13 @@ export default function App() {
         {activeTab === 'settle' && (
           <>
             <BalanceSummary balances={balances} users={outing.users} />
-            <SettlementView transactions={settlements} />
+            <SettlementView
+              transactions={settlements}
+              users={outing.users}
+              onSettleUp={handleSettleUp}
+              completedSettlements={completedSettlements}
+            />
+            <SettlementHistory settlements={completedSettlements} users={outing.users} />
           </>
         )}
 

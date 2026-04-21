@@ -7,24 +7,111 @@ import BalanceSummary from './components/BalanceSummary';
 import SettlementView from './components/SettlementView';
 import TransactionHistory from './components/TransactionHistory';
 import AddOutingModal from './components/AddOutingModal';
-import { saveExpense } from './services/supabase';
-import { getExpenses } from "./services/supabase";
-// import SettlementView from './components/SettlementView';
+import { saveExpense, getExpenses, supabase } from './services/supabase';
 import SettlementHistory from './components/SettlementHistory';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2, 10);
 const now = () => new Date().toISOString();
 
+// ─── Auth Component ─────────────────────────────────────────────────────────
+function Auth({ onLogin }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLogin, setIsLogin] = useState(true);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+
+    if (isLogin) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setError(error.message);
+      else onLogin();
+    } else {
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) setError(error.message);
+      else setMessage('Check your email for confirmation!');
+    }
+  };
+
+  return (
+    <div className="setup-screen">
+      <div className="setup-card">
+        <div className="logo">
+          <span className="logo-real">real</span>
+          <span className="logo-split">Split</span>
+        </div>
+        <p className="setup-tagline">Split smart. Settle fast.</p>
+
+        {message && <p style={{ color: 'green', textAlign: 'center' }}>{message}</p>}
+        {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
+
+        <form onSubmit={handleSubmit}>
+          <input
+            className="input input--large"
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            className="input input--large"
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button className="btn btn--primary btn--full" type="submit">
+            {isLogin ? 'Login →' : 'Sign Up →'}
+          </button>
+        </form>
+
+        <button
+          className="btn btn--ghost btn--full"
+          onClick={() => setIsLogin(!isLogin)}
+          style={{ marginTop: '10px' }}
+        >
+          {isLogin ? 'Need an account? Sign Up' : 'Have an account? Login'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 export default function App() {
+  // Authentication state
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // App state
   const [outing, setOuting] = useState(() => loadOuting());
-  const [activeTab, setActiveTab] = useState('expenses'); // expenses | settle | history
-  const [modalMode, setModalMode] = useState(null); // null | 'choose' | 'cab' | 'pizza'
+  const [activeTab, setActiveTab] = useState('expenses');
+  const [modalMode, setModalMode] = useState(null);
   const [newUserName, setNewUserName] = useState('');
   const [outingNameInput, setOutingNameInput] = useState('');
   const [setupDone, setSetupDone] = useState(() => !!loadOuting().name);
   const [completedSettlements, setCompletedSettlements] = useState([]);
+
+  // Check authentication on app load
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => listener?.subscription.unsubscribe();
+  }, []);
 
   // Persist on every state change
   useEffect(() => {
@@ -58,9 +145,10 @@ export default function App() {
       name: outingNameInput.trim(),
       history: [entry],
     });
-    setCompletedSettlements([]); // Clear settlements for new outing
+    setCompletedSettlements([]);
     setSetupDone(true);
   };
+
   const handleAddUser = () => {
     const name = newUserName.trim();
     if (!name) return;
@@ -92,7 +180,6 @@ export default function App() {
     try {
       const exp = { id: uid(), type: 'normal', ...expData };
 
-      // Save to Supabase database
       await saveExpense({
         title: exp.title,
         amount: exp.totalAmount,
@@ -160,7 +247,6 @@ export default function App() {
   };
 
   const handleSettleUp = (transaction) => {
-    // Check if already settled (prevent duplicates)
     const alreadySettled = completedSettlements.some(settled =>
       settled.fromId === transaction.fromId &&
       settled.toId === transaction.toId &&
@@ -172,7 +258,6 @@ export default function App() {
       return;
     }
 
-    // Add to completed settlements
     const newSettlement = {
       id: Date.now(),
       fromId: transaction.fromId,
@@ -185,7 +270,6 @@ export default function App() {
 
     setCompletedSettlements(prev => [...prev, newSettlement]);
 
-    // Add to history
     const entry = addHistory(
       'settlement_made',
       `${transaction.fromName} paid ₹${transaction.amount.toFixed(2)} to ${transaction.toName}`
@@ -198,44 +282,42 @@ export default function App() {
 
   const handleReset = () => {
     if (!confirm('Clear all data and start fresh?')) return;
-
-    // Clear everything
     clearOuting();
-
-    // Create a new outing with fresh ID
-    const newOutingId = Date.now().toString();
-
-    setOuting({
-      ...DEFAULT_OUTING,
-      id: newOutingId,
-      name: '',
-      users: [],
-      expenses: [],
-      restaurantBills: [],
-      history: [],
-    });
-
-    // Clear settlements for the reset outing
+    setOuting({ ...DEFAULT_OUTING });
     setCompletedSettlements([]);
-    setCurrentOutingId(newOutingId);
     setSetupDone(false);
     setOutingNameInput('');
-
-    // Also clear the stored settlements for the old outing
-    localStorage.removeItem(`settlements_${currentOutingId}`);
   };
 
   useEffect(() => {
     const fetchExpenses = async () => {
       const data = await getExpenses();
-
       if (data && data.length > 0) {
         console.log("Loaded from database:", data);
       }
     };
-
     fetchExpenses();
   }, []);
+
+  // Show loading screen
+  if (authLoading) {
+    return (
+      <div className="setup-screen">
+        <div className="setup-card">
+          <div className="logo">
+            <span className="logo-real">real</span>
+            <span className="logo-split">Split</span>
+          </div>
+          <p className="setup-tagline">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login screen if not authenticated
+  if (!user) {
+    return <Auth onLogin={() => {}} />;
+  }
 
   // ── Setup Screen ────────────────────────────────────────────────────────────
   if (!setupDone) {
@@ -258,12 +340,19 @@ export default function App() {
           <button className="btn btn--primary btn--full" onClick={handleCreateOuting}>
             Create Outing →
           </button>
+          <button
+            className="btn btn--ghost btn--full"
+            onClick={() => supabase.auth.signOut()}
+            style={{ marginTop: '10px' }}
+          >
+            Logout
+          </button>
         </div>
       </div>
     );
   }
 
-  // ── Main App ────────────────────────────────────────────────────────────────
+  // ── Main App Return ────────────────────────────────────────────────────────────────
   return (
     <div className="app">
       {/* ── Header ── */}
@@ -274,9 +363,17 @@ export default function App() {
             <span className="logo-split">Split</span>
           </div>
           <div className="outing-name">{outing.name}</div>
-          <button className="btn btn--ghost btn--sm" onClick={handleReset}>
-            Reset
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn btn--ghost btn--sm" onClick={handleReset}>
+              Reset
+            </button>
+            <button
+              className="btn btn--ghost btn--sm"
+              onClick={() => supabase.auth.signOut()}
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
